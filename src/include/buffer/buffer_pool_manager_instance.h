@@ -107,6 +107,13 @@ class BufferPoolManagerInstance : public BufferPoolManager {
   auto AllocatePage() -> page_id_t;
 
   /**
+   * Find frame from freelist and replacer 
+   * @param[out] frame_id the id of frame
+   * @return void
+   */
+  void FindUseableFrame(frame_id_t* frame_id);
+
+  /**
    * Deallocate a page on disk.
    * @param page_id id of the page to deallocate
    */
