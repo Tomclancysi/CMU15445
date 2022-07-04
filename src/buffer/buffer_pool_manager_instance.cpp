@@ -76,12 +76,12 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
   FindUseableFrame(&frame_id);
   // 3.   Update P's metadata, zero out memory and add P to the page table.
   p = &pages_[frame_id];
-
-  page_table_.erase(p->page_id_);
+  
   // pay attention new page's pin count should be set to 1.
   p->page_id_ = new_page_id;
   p->pin_count_ = 1;
-  p->is_dirty_ = false;
+  // new page need to write back even it is all space.
+  p->is_dirty_ = true;
   p->ResetMemory();
   page_table_[new_page_id] = frame_id;
   replacer_->Pin(frame_id);
@@ -99,7 +99,8 @@ void BufferPoolManagerInstance::FindUseableFrame(frame_id_t* frame_id){
     replacer_->Victim(frame_id);
     // this frame will be used by new page, so flush it
     if(pages_[*frame_id].IsDirty())
-      FlushPage(*frame_id);
+      disk_manager_->WritePage(pages_[*frame_id].page_id_, pages_[*frame_id].GetData());
+    page_table_.erase(pages_[*frame_id].page_id_);
   }
 }
 
@@ -108,10 +109,12 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
   // 1.1    If P exists, pin it and return it immediately.
   // 1.2    If P does not exist, find a replacement page (R) from either the free list or the replacer.
   //        Note that pages are always found from the free list first.
+  // auto old = replacer_->Size();
   frame_id_t frame_id;
   if(page_table_.count(page_id)){
     frame_id = page_table_[page_id];
     pages_[frame_id].pin_count_ += 1;
+    replacer_->Pin(frame_id);
     return &pages_[frame_id];
   }
   if(free_list_.empty() && replacer_->Size() == 0)
@@ -146,6 +149,8 @@ auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
       p->pin_count_ = 0;
       p->is_dirty_ = false;
       p->ResetMemory();
+      free_list_.push_front(page_table_[page_id]);
+      page_table_.erase(page_id);
       return true;
     }
     return false;
@@ -157,8 +162,12 @@ auto BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) -> 
   frame_id_t frame_id;
   if(page_table_.count(page_id) && pages_[(frame_id = page_table_[page_id])].pin_count_ > 0){
     pages_[frame_id].is_dirty_ = is_dirty;
-    if(--pages_[frame_id].pin_count_ == 0)
+    if(--pages_[frame_id].pin_count_ == 0){
+      // auto old = replacer_->Size();
       replacer_->Unpin(frame_id);
+      // printf("instance%d size increase from %d to %d\n", (int)instance_index_, (int)old, (int)replacer_->Size());
+    }
+      
     return true;
   }
   return false;
