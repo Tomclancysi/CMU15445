@@ -26,18 +26,18 @@ LRUReplacer::LRUReplacer(size_t num_pages) {
 
 LRUReplacer::~LRUReplacer() = default;
 
-auto LRUReplacer::Victim(frame_id_t *frame_id) -> bool { 
+auto LRUReplacer::Victim(frame_id_t *frame_id) -> bool {
     // move cursor to next position where is unpinned and reference bit equal to zero
-    if(num_unpinned_frame == 0)
+    if (num_unpinned_frame == 0)
         return false;
     MoveToFristUnpinned();
-    if(!reference[cursor]){
+    if (!reference[cursor]) {
         ResetCursor(cursor);
         *frame_id = (frame_id_t)cursor;
         return true;
     }
     auto old_cursor = cursor;
-    do{
+    do {
         reference[cursor] = 0;
         cursor = (cursor + 1) % num_pages;
     }while(!(unpinned[cursor] && !reference[cursor]) && cursor != old_cursor);
@@ -49,11 +49,11 @@ auto LRUReplacer::Victim(frame_id_t *frame_id) -> bool {
 }
 
 void LRUReplacer::MoveToFristUnpinned() {
-    while(unpinned[cursor] == false)
+    while (unpinned[cursor] == false)
         cursor = (cursor + 1) % num_pages;
 }
 
-void LRUReplacer::ResetCursor(size_t cursor){
+void LRUReplacer::ResetCursor(size_t cursor) {
     reference[cursor] = 0;
     // unpinned cursor should be false because it is used by a new block
     unpinned[cursor] = 0;
@@ -61,14 +61,14 @@ void LRUReplacer::ResetCursor(size_t cursor){
 }
 
 void LRUReplacer::Pin(frame_id_t frame_id) {
-    if(unpinned[frame_id]){
+    if (unpinned[frame_id]) {
         unpinned[frame_id] = false;
         num_unpinned_frame -= 1;
     }
 }
 
 void LRUReplacer::Unpin(frame_id_t frame_id) {
-    if(!unpinned[frame_id]){
+    if (!unpinned[frame_id]) {
         reference[frame_id] = 1;
         unpinned[frame_id] = true;
         num_unpinned_frame += 1;

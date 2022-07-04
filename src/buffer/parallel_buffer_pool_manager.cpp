@@ -21,8 +21,8 @@ ParallelBufferPoolManager::ParallelBufferPoolManager(size_t num_instances, size_
   this->pool_size = pool_size;
   pool_size_of_all = pool_size * num_instances;
   start_index = 0;
-  // i think the two manager are useless, abort it 
-  for(size_t i = 0; i < num_instances; i++){
+  // i think the two manager are useless, abort it
+  for (size_t i = 0; i < num_instances; i++) {
     // smart point also can use duotai
     manage_instances.push_back(new BufferPoolManagerInstance(pool_size, num_instances, i, disk_manager, log_manager));
   }
@@ -70,13 +70,12 @@ auto ParallelBufferPoolManager::NewPgImp(page_id_t *page_id) -> Page * {
   std::lock_guard<std::mutex> lock(latch_);
   size_t start_index = this->start_index, cur_index = this->start_index;
   this->start_index = (this->start_index + 1) % num_instances;
-  do{
+  do {
     auto page = manage_instances[cur_index]->NewPage(page_id);
     cur_index = (cur_index + 1) % num_instances;
-    if(page != nullptr){
+    if (page != nullptr) {
       return page;
     }
-      
   }while(cur_index != start_index);
   return nullptr;
 }
@@ -89,7 +88,7 @@ auto ParallelBufferPoolManager::DeletePgImp(page_id_t page_id) -> bool {
 
 void ParallelBufferPoolManager::FlushAllPgsImp() {
   // flush all pages from all BufferPoolManagerInstances
-  for(auto& page : manage_instances){
+  for (auto& page : manage_instances) {
     page->FlushAllPages();
   }
 }
