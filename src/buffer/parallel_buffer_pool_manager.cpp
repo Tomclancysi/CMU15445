@@ -67,6 +67,7 @@ auto ParallelBufferPoolManager::NewPgImp(page_id_t *page_id) -> Page * {
   // starting index and return nullptr
   // 2.   Bump the starting index (mod number of instances) to start search at a different BPMI each time this function
   // is called
+  std::lock_guard<std::mutex> lock(latch_);
   size_t start_index = this->start_index, cur_index = this->start_index;
   this->start_index = (this->start_index + 1) % num_instances;
   do{
