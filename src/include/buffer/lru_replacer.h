@@ -50,15 +50,15 @@ class LRUReplacer : public Replacer {
   // TODO(student): implement me!
   // std::list<frame_id_t> pinned_frame;
   // std::list<frame_id_t> free_frame;
-  std::vector<bool> unpinned;
-  std::vector<bool> reference;
-  std::vector<bool> used;
-  size_t free_frame_count;
-  size_t num_pages;
-  size_t num_unpinned_frame;
-  size_t cursor;
+  // std::vector<bool> used_;
+  std::vector<bool> unpinned_;
+  std::vector<bool> reference_;
+  size_t num_pages_;
+  size_t num_unpinned_frame_;
+  size_t cursor_;
 
   void MoveToFristUnpinned();
+
   void ResetCursor(size_t cursor);
 };
 

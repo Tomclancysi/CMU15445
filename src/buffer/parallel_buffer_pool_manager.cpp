@@ -17,14 +17,14 @@ namespace bustub {
 ParallelBufferPoolManager::ParallelBufferPoolManager(size_t num_instances, size_t pool_size, DiskManager *disk_manager,
                                                      LogManager *log_manager) {
   // Allocate and create individual BufferPoolManagerInstances
-  this->num_instances = num_instances;
-  this->pool_size = pool_size;
-  pool_size_of_all = pool_size * num_instances;
-  start_index = 0;
+  this->num_instances_ = num_instances;
+  this->pool_size_ = pool_size;
+  pool_size_of_all_ = pool_size * num_instances;
+  start_index_ = 0;
   // i think the two manager are useless, abort it
   for (size_t i = 0; i < num_instances; i++) {
     // smart point also can use duotai
-    manage_instances.push_back(new BufferPoolManagerInstance(pool_size, num_instances, i, disk_manager, log_manager));
+    manage_instances_.push_back(new BufferPoolManagerInstance(pool_size, num_instances, i, disk_manager, log_manager));
   }
 }
 
@@ -33,13 +33,13 @@ ParallelBufferPoolManager::~ParallelBufferPoolManager() = default;
 
 auto ParallelBufferPoolManager::GetPoolSize() -> size_t {
   // Get size of all BufferPoolManagerInstances
-  return pool_size_of_all;
+  return pool_size_of_all_;
 }
 
 auto ParallelBufferPoolManager::GetBufferPoolManager(page_id_t page_id) -> BufferPoolManager * {
   // Get BufferPoolManager responsible for handling given page id. You can use this method in your other methods.
-  page_id_t moded_id = page_id % num_instances;
-  return manage_instances[moded_id];
+  page_id_t moded_id = page_id % num_instances_;
+  return manage_instances_[moded_id];
 }
 
 auto ParallelBufferPoolManager::FetchPgImp(page_id_t page_id) -> Page * {
@@ -68,11 +68,12 @@ auto ParallelBufferPoolManager::NewPgImp(page_id_t *page_id) -> Page * {
   // 2.   Bump the starting index (mod number of instances) to start search at a different BPMI each time this function
   // is called
   std::lock_guard<std::mutex> lock(latch_);
-  size_t start_index = this->start_index, cur_index = this->start_index;
-  this->start_index = (this->start_index + 1) % num_instances;
+  size_t start_index = this->start_index_;
+  size_t cur_index = this->start_index_;
+  this->start_index_ = (this->start_index_ + 1) % num_instances_;
   do {
-    auto page = manage_instances[cur_index]->NewPage(page_id);
-    cur_index = (cur_index + 1) % num_instances;
+    auto page = manage_instances_[cur_index]->NewPage(page_id);
+    cur_index = (cur_index + 1) % num_instances_;
     if (page != nullptr) {
       return page;
     }
@@ -88,7 +89,7 @@ auto ParallelBufferPoolManager::DeletePgImp(page_id_t page_id) -> bool {
 
 void ParallelBufferPoolManager::FlushAllPgsImp() {
   // flush all pages from all BufferPoolManagerInstances
-  for (auto& page : manage_instances) {
+  for (auto& page : manage_instances_) {
     page->FlushAllPages();
   }
 }

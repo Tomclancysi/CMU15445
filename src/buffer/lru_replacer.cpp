@@ -15,66 +15,67 @@
 namespace bustub {
 
 LRUReplacer::LRUReplacer(size_t num_pages) {
-    free_frame_count = 0;
-    this->cursor = 0;
-    this->num_pages = num_pages;
-    this->num_unpinned_frame = 0;
-    this->unpinned = std::vector<bool>(this->num_pages, false);
-    this->reference = std::vector<bool>(this->num_pages, true);
-    this->used = std::vector<bool>(this->num_pages, true);
+    this->cursor_ = 0;
+    this->num_pages_ = num_pages;
+    this->num_unpinned_frame_ = 0;
+    this->unpinned_ = std::vector<bool>(this->num_pages_, false);
+    this->reference_ = std::vector<bool>(this->num_pages_, true);
+    // this->used = std::vector<bool>(this->num_pages_, true);
 }
 
 LRUReplacer::~LRUReplacer() = default;
 
 auto LRUReplacer::Victim(frame_id_t *frame_id) -> bool {
-    // move cursor to next position where is unpinned and reference bit equal to zero
-    if (num_unpinned_frame == 0)
+    // move cursor_ to next position where is unpinned and reference bit equal to zero
+    if (num_unpinned_frame_ == 0) {
         return false;
+    }
     MoveToFristUnpinned();
-    if (!reference[cursor]) {
-        ResetCursor(cursor);
-        *frame_id = (frame_id_t)cursor;
+    if (!reference_[cursor_]) {
+        ResetCursor(cursor_);
+        *frame_id = static_cast<frame_id_t>(cursor_);
         return true;
     }
-    auto old_cursor = cursor;
+    auto old_cursor = cursor_;
     do {
-        reference[cursor] = 0;
-        cursor = (cursor + 1) % num_pages;
-    }while(!(unpinned[cursor] && !reference[cursor]) && cursor != old_cursor);
+        reference_[cursor_] = false;
+        cursor_ = (cursor_ + 1) % num_pages_;
+    }while(!(unpinned_[cursor_] && !reference_[cursor_]) && cursor_ != old_cursor);
     // vicit it to disk or...
-    ResetCursor(cursor);
+    ResetCursor(cursor_);
     // return value
-    *frame_id = (frame_id_t)cursor;
+    *frame_id = static_cast<frame_id_t>(cursor_);
     return true;
 }
 
 void LRUReplacer::MoveToFristUnpinned() {
-    while (unpinned[cursor] == false)
-        cursor = (cursor + 1) % num_pages;
+    while (!unpinned_[cursor_]) {
+        cursor_ = (cursor_ + 1) % num_pages_;
+    }
 }
 
-void LRUReplacer::ResetCursor(size_t cursor) {
-    reference[cursor] = 0;
-    // unpinned cursor should be false because it is used by a new block
-    unpinned[cursor] = 0;
-    num_unpinned_frame -= 1;
+void LRUReplacer::ResetCursor(size_t cursor_) {
+    reference_[cursor_] = false;
+    // unpinned cursor_ should be false because it is used by a new block
+    unpinned_[cursor_] = false;
+    num_unpinned_frame_ -= 1;
 }
 
 void LRUReplacer::Pin(frame_id_t frame_id) {
-    if (unpinned[frame_id]) {
-        unpinned[frame_id] = false;
-        num_unpinned_frame -= 1;
+    if (unpinned_[frame_id]) {
+        unpinned_[frame_id] = false;
+        num_unpinned_frame_ -= 1;
     }
 }
 
 void LRUReplacer::Unpin(frame_id_t frame_id) {
-    if (!unpinned[frame_id]) {
-        reference[frame_id] = 1;
-        unpinned[frame_id] = true;
-        num_unpinned_frame += 1;
+    if (!unpinned_[frame_id]) {
+        reference_[frame_id] = true;
+        unpinned_[frame_id] = true;
+        num_unpinned_frame_ += 1;
     }
 }
 
-auto LRUReplacer::Size() -> size_t { return num_unpinned_frame; }
+auto LRUReplacer::Size() -> size_t { return num_unpinned_frame_; }
 
 }  // namespace bustub

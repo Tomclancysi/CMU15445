@@ -152,9 +152,10 @@ class RowMatrix : public Matrix<T> {
    * @throws OUT_OF_RANGE if either index is out of range
    */
   auto GetElement(int i, int j) const -> T override {
-    if (i >= 0 && i < this->rows_ && j >= 0 && j < this->cols_)
-      return data_[i][j];
-    throw Exception(ExceptionType::OUT_OF_RANGE, "index out of range");
+    if (!(i >= 0 && i < this->rows_ && j >= 0 && j < this->cols_)) {
+      throw Exception(ExceptionType::OUT_OF_RANGE, "index out of range");
+    }
+    return this->linear_[i * this->cols_ + j];
   }
 
   /**
@@ -168,10 +169,10 @@ class RowMatrix : public Matrix<T> {
    * @throws OUT_OF_RANGE if either index is out of range
    */
   void SetElement(int i, int j, T val) override {
-    if (i >= 0 && i < this->rows_ && j >= 0 && j < this->cols_)
-      data_[i][j] = val;
-    else
+    if (!(i >= 0 && i < this->rows_ && j >= 0 && j < this->cols_)) {
       throw Exception(ExceptionType::OUT_OF_RANGE, "index out of range");
+    }
+    data_[i][j] = val;
   }
 
   /**
@@ -186,13 +187,12 @@ class RowMatrix : public Matrix<T> {
    * @throws OUT_OF_RANGE if `source` is incorrect size
    */
   void FillFrom(const std::vector<T> &source) override {
-    if (static_cast<int>(source.size()) != this->rows_ * this->cols_)
+    if (static_cast<int>(source.size()) != this->rows_ * this->cols_) {
       throw Exception(ExceptionType::OUT_OF_RANGE, "index out of range");
-    for (size_t i = 0; i < source.size(); ++i)
+    }
+    for (size_t i = 0; i < source.size(); ++i) {
       this->linear_[i] = source[i];
-    for (size_t i = 0; i < source.size(); ++i)
-      printf("%d ", this->linear_[i]);
-    printf("\n");
+    }
   }
 
   /**
@@ -232,14 +232,19 @@ class RowMatrixOperations {
    */
   static auto Add(const RowMatrix<T> *matrixA, const RowMatrix<T> *matrixB) -> std::unique_ptr<RowMatrix<T>> {
     // TODO(P0): Add implementation
-    int rowA = matrixA->GetRowCount(), colA = matrixA->GetColumnCount();
-    int rowB = matrixB->GetRowCount(), colB = matrixB->GetColumnCount();
-    if (rowA != rowB || colA != colB)
+    int row_a = matrixA->GetRowCount();
+    int col_a = matrixA->GetColumnCount();
+    int row_b = matrixB->GetRowCount();
+    int col_b = matrixB->GetColumnCount();
+    if (row_a != row_b || col_a != col_b) {
       throw Exception(ExceptionType::OUT_OF_RANGE, "index out of range");
-    auto res = new RowMatrix<T>(rowA, colA);
-    for (int i = 0; i < rowA; ++i)
-      for (int j = 0; j < colA; ++j)
+    }
+    auto res = new RowMatrix<T>(row_a, col_a);
+    for (int i = 0; i < row_a; ++i) {
+      for (int j = 0; j < col_a; ++j) {
         res->SetElement(i, j, matrixA->GetElement(i, j) + matrixB->GetElement(i, j));
+      }
+    }
     return std::unique_ptr<RowMatrix<T>>(res);
   }
 
@@ -252,15 +257,18 @@ class RowMatrixOperations {
    */
   static auto Multiply(const RowMatrix<T> *matrixA, const RowMatrix<T> *matrixB) -> std::unique_ptr<RowMatrix<T>> {
     // TODO(P0): Add implementation
-    int rowA = matrixA->GetRowCount(), colA = matrixA->GetColumnCount();
-    int rowB = matrixB->GetRowCount(), colB = matrixB->GetColumnCount();
-    if (colA != rowB)
+    int row_a = matrixA->GetRowCount();
+    int col_a = matrixA->GetColumnCount();
+    int row_b = matrixB->GetRowCount();
+    int col_b = matrixB->GetColumnCount();
+    if (col_a != row_b) {
       throw Exception(ExceptionType::OUT_OF_RANGE, "index out of range");
-    auto res = new RowMatrix<T>(rowA, colB);
-    for (int i = 0; i < rowA; i++) {
-      for (int j = 0; j < colB; j++) {
+    }
+    auto res = new RowMatrix<T>(row_a, col_b);
+    for (int i = 0; i < row_a; i++) {
+      for (int j = 0; j < col_b; j++) {
         int val = 0;
-        for (int k = 0; k < colA; k++) {
+        for (int k = 0; k < col_a; k++) {
           val +=  matrixA->GetElement(i, k) * matrixB->GetElement(k, j);
         }
         res->SetElement(i, j, val);
