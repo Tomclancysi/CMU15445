@@ -27,6 +27,7 @@ LRUReplacer::~LRUReplacer() = default;
 
 auto LRUReplacer::Victim(frame_id_t *frame_id) -> bool {
     // move cursor_ to next position where is unpinned and reference bit equal to zero
+    std::lock_guard<std::mutex> guard(latch_);
     if (num_unpinned_frame_ == 0) {
         return false;
     }
@@ -62,6 +63,7 @@ void LRUReplacer::ResetCursor(size_t cursor_) {
 }
 
 void LRUReplacer::Pin(frame_id_t frame_id) {
+    std::lock_guard<std::mutex> guard(latch_);
     if (unpinned_[frame_id]) {
         unpinned_[frame_id] = false;
         num_unpinned_frame_ -= 1;
@@ -69,6 +71,7 @@ void LRUReplacer::Pin(frame_id_t frame_id) {
 }
 
 void LRUReplacer::Unpin(frame_id_t frame_id) {
+    std::lock_guard<std::mutex> guard(latch_);
     if (!unpinned_[frame_id]) {
         reference_[frame_id] = true;
         unpinned_[frame_id] = true;
@@ -76,6 +79,9 @@ void LRUReplacer::Unpin(frame_id_t frame_id) {
     }
 }
 
-auto LRUReplacer::Size() -> size_t { return num_unpinned_frame_; }
+auto LRUReplacer::Size() -> size_t {
+    std::lock_guard<std::mutex> guard(latch_);
+    return num_unpinned_frame_;
+}
 
 }  // namespace bustub

@@ -53,6 +53,7 @@ class LRUReplacer : public Replacer {
   // std::vector<bool> used_;
   std::vector<bool> unpinned_;
   std::vector<bool> reference_;
+  std::mutex latch_;
   size_t num_pages_;
   size_t num_unpinned_frame_;
   size_t cursor_;
