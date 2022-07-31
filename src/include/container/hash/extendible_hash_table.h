@@ -163,6 +163,7 @@ class ExtendibleHashTable {
 
   // member variables
   page_id_t directory_page_id_;
+  page_id_t inf_;
   BufferPoolManager *buffer_pool_manager_;
   KeyComparator comparator_;
 

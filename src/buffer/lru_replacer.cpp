@@ -35,6 +35,7 @@ auto LRUReplacer::Victim(frame_id_t *frame_id) -> bool {
     if (!reference_[cursor_]) {
         ResetCursor(cursor_);
         *frame_id = static_cast<frame_id_t>(cursor_);
+        cursor_ = (cursor_ + 1) % num_pages_;
         return true;
     }
     auto old_cursor = cursor_;
@@ -46,6 +47,7 @@ auto LRUReplacer::Victim(frame_id_t *frame_id) -> bool {
     ResetCursor(cursor_);
     // return value
     *frame_id = static_cast<frame_id_t>(cursor_);
+    cursor_ = (cursor_ + 1) % num_pages_;
     return true;
 }
 

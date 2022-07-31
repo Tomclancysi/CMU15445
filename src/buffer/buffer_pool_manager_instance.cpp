@@ -146,7 +146,6 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
 auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
   // 0.   Make sure you call DeallocatePage!
   std::lock_guard<std::mutex> lock(latch_);
-  DeallocatePage(page_id);
   // 1.   Search the page table for the requested page (P).
   // 1.   If P does not exist, return true.
   // 2.   If P exists, but has a non-zero pin-count, return false. Someone is using the page.
@@ -154,11 +153,13 @@ auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
   if (page_table_.find(page_id) != page_table_.end()) {
     Page* p = &pages_[page_table_[page_id]];
     if (p->pin_count_ == 0) {
+      DeallocatePage(page_id);
       p->page_id_ = page_id;
       p->pin_count_ = 0;
       p->is_dirty_ = false;
       p->ResetMemory();
       free_list_.push_front(page_table_[page_id]);
+      replacer_->Unpin(page_table_[page_id]);
       page_table_.erase(page_id);
       return true;
     }

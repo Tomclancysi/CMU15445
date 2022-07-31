@@ -81,6 +81,8 @@ class HashTableDirectoryPage {
    **/
   auto GetSplitImageIndex(uint32_t bucket_idx) -> uint32_t;
 
+  auto GetMergeImageIndex(uint32_t bucket_idx) -> uint32_t;
+
   /**
    * GetGlobalDepthMask - returns a mask of global_depth 1's and the rest 0's.
    *
@@ -112,6 +114,11 @@ class HashTableDirectoryPage {
    * @return the global depth of the directory
    */
   auto GetGlobalDepth() -> uint32_t;
+  
+  /**
+   * Set the global depth of the directory
+   */
+  void SetGlobalDepth(uint32_t glb_depth);
 
   /**
    * Increment the global depth of the directory

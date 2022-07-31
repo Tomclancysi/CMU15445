@@ -26,29 +26,67 @@ void HashTableDirectoryPage::SetLSN(lsn_t lsn) { lsn_ = lsn; }
 
 auto HashTableDirectoryPage::GetGlobalDepth() -> uint32_t { return global_depth_; }
 
-auto HashTableDirectoryPage::GetGlobalDepthMask() -> uint32_t { return 0; }
+void HashTableDirectoryPage::SetGlobalDepth(uint32_t glb_depth) { global_depth_ = glb_depth; }
 
-void HashTableDirectoryPage::IncrGlobalDepth() {}
+auto HashTableDirectoryPage::GetGlobalDepthMask() -> uint32_t {
+  // as it use uint32, assume it less equal than 32， but the buckets size is 512, depth max maybe equal to 9
+  if (global_depth_ >= 32) {
+    return 0xffffffff;
+  }
+  return (1 << global_depth_) - 1;
+}
+
+auto HashTableDirectoryPage::GetLocalDepthMask(uint32_t bucket_idx) -> uint32_t {
+  return (1 << local_depths_[bucket_idx]) - 1;
+}
+
+void HashTableDirectoryPage::IncrGlobalDepth() { global_depth_++; }
 
 void HashTableDirectoryPage::DecrGlobalDepth() { global_depth_--; }
 
-auto HashTableDirectoryPage::GetBucketPageId(uint32_t bucket_idx) -> page_id_t { return 0; }
+auto HashTableDirectoryPage::GetBucketPageId(uint32_t bucket_idx) -> page_id_t {
+  // it must be store in disk so how to hash!
+  return bucket_page_ids_[bucket_idx];
+}
 
-void HashTableDirectoryPage::SetBucketPageId(uint32_t bucket_idx, page_id_t bucket_page_id) {}
+void HashTableDirectoryPage::SetBucketPageId(uint32_t bucket_idx, page_id_t bucket_page_id) {
+  bucket_page_ids_[bucket_idx] = bucket_page_id;
+}
 
-auto HashTableDirectoryPage::Size() -> uint32_t { return 0; }
+auto HashTableDirectoryPage::Size() -> uint32_t {
+  // wtf check out what size means
+  return 0;
+}
 
-auto HashTableDirectoryPage::CanShrink() -> bool { return false; }
+auto HashTableDirectoryPage::CanShrink() -> bool {
+  // wtf whether can shrink
+  // 应该指的是 可以全局减少一位index
+  return false;
+}
 
-auto HashTableDirectoryPage::GetLocalDepth(uint32_t bucket_idx) -> uint32_t { return 0; }
+auto HashTableDirectoryPage::GetLocalDepth(uint32_t bucket_idx) -> uint32_t { return local_depths_[bucket_idx]; }
 
-void HashTableDirectoryPage::SetLocalDepth(uint32_t bucket_idx, uint8_t local_depth) {}
+void HashTableDirectoryPage::SetLocalDepth(uint32_t bucket_idx, uint8_t local_depth) {
+  local_depths_[bucket_idx] = local_depth;
+}
 
-void HashTableDirectoryPage::IncrLocalDepth(uint32_t bucket_idx) {}
+void HashTableDirectoryPage::IncrLocalDepth(uint32_t bucket_idx) { local_depths_[bucket_idx]++; }
 
-void HashTableDirectoryPage::DecrLocalDepth(uint32_t bucket_idx) {}
+void HashTableDirectoryPage::DecrLocalDepth(uint32_t bucket_idx) { local_depths_[bucket_idx]--; }
 
-auto HashTableDirectoryPage::GetLocalHighBit(uint32_t bucket_idx) -> uint32_t { return 0; }
+auto HashTableDirectoryPage::GetLocalHighBit(uint32_t bucket_idx) -> uint32_t {
+  // wtf for exampole idx = b101, its brothers are 100 110 111, 000 001 010 011 depth = 3
+  // u need to split when overflow and local less than global!
+  return bucket_idx >> local_depths_[bucket_idx] << local_depths_[bucket_idx];
+}
+
+auto HashTableDirectoryPage::GetSplitImageIndex(uint32_t bucket_idx) -> uint32_t {
+  return (1 << local_depths_[bucket_idx]) ^ bucket_idx;
+}
+
+auto HashTableDirectoryPage::GetMergeImageIndex(uint32_t bucket_idx) -> uint32_t {
+  return (1 << (local_depths_[bucket_idx] - 1)) ^ bucket_idx;
+}
 
 /**
  * VerifyIntegrity - Use this for debugging but **DO NOT CHANGE**
