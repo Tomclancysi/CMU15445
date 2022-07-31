@@ -79,9 +79,12 @@ TEST(HashTablePageTest, BucketPageSampleTest) {
   }
 
   // remove a few pairs
+  bucket_page->PrintBucket();
+  EXPECT_EQ(true, bucket_page->IsReadable(0));
+  EXPECT_EQ(true, bucket_page->IsReadable(1));
   for (unsigned i = 0; i < 10; i++) {
     if (i % 2 == 1) {
-      assert(bucket_page->Remove(i, i, IntComparator()));
+      EXPECT_EQ(bucket_page->Remove(i, i, IntComparator()), true);
     }
   }
 

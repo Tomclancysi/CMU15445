@@ -114,7 +114,7 @@ class HashTableDirectoryPage {
    * @return the global depth of the directory
    */
   auto GetGlobalDepth() -> uint32_t;
-  
+
   /**
    * Set the global depth of the directory
    */

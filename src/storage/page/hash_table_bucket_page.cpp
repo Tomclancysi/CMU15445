@@ -23,7 +23,7 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vector<ValueType> *result) -> bool {
   bool flag = false;
   for (uint32_t i = 0; i < BUCKET_ARRAY_SIZE; ++i) {
-    if (IsReadable(i) && cmp(key, KeyAt(i))) {
+    if (IsReadable(i) && cmp(key, KeyAt(i)) == 0) {
       result->push_back(ValueAt(i));
       flag = true;
     }
@@ -33,17 +33,17 @@ auto HASH_TABLE_BUCKET_TYPE::GetValue(KeyType key, KeyComparator cmp, std::vecto
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator cmp) -> bool {
-  // for (uint_32_t i = 0; i < BUCKET_ARRAY_SIZE; ++i) {
+  // for (uint32_t i = 0; i < BUCKET_ARRAY_SIZE; ++i) {
   //   if (IsReadable(i) && cmp(key, KeyAt(i)) && value == ValueAt(i)) {
   //     return false;
   //   }
   // }
-  for (uint_32_t i = 0; i < BUCKET_ARRAY_SIZE; ++i) {
+  for (uint32_t i = 0; i < BUCKET_ARRAY_SIZE; ++i) {
     // wtf i dont konw why need occupied array, maybe occupy is not needed.
     if (!IsReadable(i)) {
       SetOccupied(i, true);
       SetReadable(i, true);
-      array_[i] = make_pair(key, value);
+      array_[i] = std::make_pair(key, value);
       return true;
     }
   }
@@ -52,9 +52,9 @@ auto HASH_TABLE_BUCKET_TYPE::Insert(KeyType key, ValueType value, KeyComparator 
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_BUCKET_TYPE::Remove(KeyType key, ValueType value, KeyComparator cmp) -> bool {
-  for (uint_32_t i = 0; i < BUCKET_ARRAY_SIZE; ++i) {
-    if (IsReadable(i) && cmp(key, KeyAt(i)) && value == ValueAt(i)) {
-      SetReadable(i);
+  for (uint32_t i = 0; i < BUCKET_ARRAY_SIZE; ++i) {
+    if (IsReadable(i) && cmp(key, KeyAt(i)) == 0 && value == ValueAt(i)) {
+      SetReadable(i, false);
       return true;
     }
   }
@@ -82,7 +82,7 @@ auto HASH_TABLE_BUCKET_TYPE::IsOccupied(uint32_t bucket_idx) const -> bool {
   uint32_t byte_idx = bucket_idx / 8;
   unsigned char byte = occupied_[byte_idx];
   uint32_t n = bucket_idx % 8;
-  return (byte >> n) & 1;
+  return ((byte >> n) & 1) != 0;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
@@ -90,7 +90,7 @@ void HASH_TABLE_BUCKET_TYPE::SetOccupied(uint32_t bucket_idx, bool flag) {
   uint32_t byte_idx = bucket_idx / 8;
   unsigned char byte = occupied_[byte_idx];
   uint32_t n = bucket_idx % 8;
-  occupied_[byte_idx] = (byte & ~(1 << n)) | (flag << n);
+  occupied_[byte_idx] = (byte & ~(1 << n)) | (static_cast<int>(flag) << n);
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
@@ -99,7 +99,7 @@ auto HASH_TABLE_BUCKET_TYPE::IsReadable(uint32_t bucket_idx) const -> bool {
   uint32_t byte_idx = bucket_idx / 8;
   unsigned char byte = readable_[byte_idx];
   uint32_t n = bucket_idx % 8;
-  return (byte >> n) & 1;
+  return ((byte >> n) & 1) != 0;
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>
@@ -107,7 +107,7 @@ void HASH_TABLE_BUCKET_TYPE::SetReadable(uint32_t bucket_idx, bool flag) {
   uint32_t byte_idx = bucket_idx / 8;
   unsigned char byte = readable_[byte_idx];
   uint32_t n = bucket_idx % 8;
-  readable_[byte_idx] = (byte & ~(1 << n)) | (flag << n);
+  readable_[byte_idx] = (byte & ~(1 << n)) | (static_cast<int>(flag) << n);
 }
 
 template <typename KeyType, typename ValueType, typename KeyComparator>

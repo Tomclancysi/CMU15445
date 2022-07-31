@@ -9,13 +9,12 @@
 // Copyright (c) 2015-2021, Carnegie Mellon University Database Group
 //
 //===----------------------------------------------------------------------===//
-
+#include <cassert>
 #include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
 #include <limits>
-#include <assert.h>
 
 
 #include "common/exception.h"
@@ -92,7 +91,7 @@ auto HASH_TABLE_TYPE::FetchBucketPage(page_id_t bucket_page_id) -> HASH_TABLE_BU
   if (pg == nullptr) {
     return nullptr;
   }
-  HASH_TABLE_BUCKET_TYPE *ret =  reinterpret_cast<HASH_TABLE_BLOCK_TYPE *>(pg->GetData());
+  HASH_TABLE_BUCKET_TYPE *ret =  reinterpret_cast<HASH_TABLE_BUCKET_TYPE *>(pg->GetData());
   return ret;
 }
 
@@ -110,8 +109,8 @@ auto HASH_TABLE_TYPE::GetValue(Transaction *transaction, const KeyType &key, std
   HASH_TABLE_BUCKET_TYPE *bucket_page = FetchBucketPage(page_id);
   auto state = bucket_page->GetValue(key, comparator_, result);
   // unpin these page
-  buffer_pool_manager_->UnpinPage(directory_page_id_);
-  buffer_pool_manager_->UnpinPage(page_id);
+  buffer_pool_manager_->UnpinPage(directory_page_id_, false);
+  buffer_pool_manager_->UnpinPage(page_id, false);
   return state;
 }
 
@@ -129,11 +128,11 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
     dir_page->IncrGlobalDepth();
     dir_page->SetBucketPageId(0, new_page_id);
     dir_page->SetBucketPageId(1, new_page_id);
-    dir_page->IncrLocalDepth(0);
-    dir_page->IncrLocalDepth(1);
+    // dir_page->IncrLocalDepth(0);
+    // dir_page->IncrLocalDepth(1);
   }
 
-  auto page_id = KeyToPageId(key, dir_page);
+  page_id_t page_id = KeyToPageId(key, dir_page);
   HASH_TABLE_BUCKET_TYPE *bucket_page = FetchBucketPage(page_id);
   // 这样page肯定存在，先验证key value是否已经存在
   std::vector<ValueType> exist_val;
@@ -147,9 +146,9 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
   // 桶是否已满？ 如果已满，是增加全局还是局部的depth？
   if (bucket_page->IsFull()) {
     // old_idx 文件夹的老下标了，它的新伙伴下标new_idx
-    auto old_idx = KeyToDirectoryIndex(key);
+    auto old_idx = KeyToDirectoryIndex(key, dir_page);
     // auto new_idx = old_idx | (1 << dir_page->GetLocalDepth(old_idx));
-    auto new_idx = dir_page->GetSplitImageIndex(old_idx);
+    // auto new_idx = dir_page->GetSplitImageIndex(old_idx);
     if (dir_page->GetGlobalDepth() == dir_page->GetLocalDepth(old_idx)) {
       // 先增全局，然后局部。  需要对元素重新摆放位置（当localdepth增加时，这个桶里的就得重新分配）？ 这里怎么增？wtf
       // 一个bucket，全局增加一位后，这个bucket可以被两个同时指向，此时局部的不变，然后重新分配，找到bucket下标
@@ -165,18 +164,20 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
     // 增局部，然后判断还可能得增全局 （当localdepth增加时，这个桶里的就得重新分配）
     // 1. 首先要创建一个新的桶
     page_id_t new_page_id;
-    HASH_TABLE_BUCKET_TYPE *new_bucket_page = reinterpret_cast<HASH_TABLE_BUCKET_TYPE *>(buffer_pool_manager_->NewPage(&new_page_id));
+    auto t = buffer_pool_manager_->NewPage(&new_page_id);
+    HASH_TABLE_BUCKET_TYPE *new_bucket_page = reinterpret_cast<HASH_TABLE_BUCKET_TYPE *>(t);
     // 2. 将原来桶里的值重新分配到两个桶子中，这时候直接插即可
     auto old_local_d = dir_page->GetLocalDepth(old_idx);
     uint32_t upper_index = 1 << dir_page->GetGlobalDepth();
     for (uint32_t cur_idx = 0; cur_idx < BUCKET_ARRAY_SIZE; cur_idx++) {
       if (bucket_page->IsReadable(cur_idx)) {
-        auto the_key = bucket_page->KeyAt(cur_idx);
+        auto raw_key = bucket_page->KeyAt(cur_idx);
+        auto the_key = Hash(raw_key);
         if ((the_key >> old_local_d) & 1) {
           // 删除老桶 放到新桶之中
           auto the_value = bucket_page->ValueAt(cur_idx);
           bucket_page->SetReadable(cur_idx, false);
-          new_bucket_page->Insert(the_key, the_value, comparator_);
+          new_bucket_page->Insert(raw_key, the_value, comparator_);
         }
       }
     }
@@ -194,8 +195,8 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
       }
     }
     // 4. 就算这个时候也有可能会再次full，因此这段可能需要个循环，不过我暂时不想在这里处理
-    // TODO 0730
-    auto final_page_id = KeyToPageId(key);
+    // TODO(lining) 0730
+    page_id_t final_page_id = KeyToPageId(key, dir_page);
     assert(final_page_id == page_id || final_page_id == new_page_id);
     if (final_page_id == page_id) {
       buffer_pool_manager_->UnpinPage(new_page_id, true);
@@ -225,11 +226,11 @@ auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const
   // 找到对应的bucket（如果存在的话，事实上它一定存在），从bucket删除，然后如果为空，调用shrink
   auto dir_page = FetchDirectoryPage();
   if (dir_page->GetGlobalDepth() == 0) {
-    buffer_pool_manager_->UnpinPage(directory_page_id_);
+    buffer_pool_manager_->UnpinPage(directory_page_id_, false);
     return false;
   }
-  auto page_id = KeyToPageId(key);
-  auto bucket_idx = KeyToDirectoryIndex(key);
+  auto page_id = KeyToPageId(key, dir_page);
+  auto bucket_idx = KeyToDirectoryIndex(key, dir_page);
   HASH_TABLE_BUCKET_TYPE *bucket_page = FetchBucketPage(page_id);
 
   auto ret = bucket_page->Remove(key, value, comparator_);
@@ -238,12 +239,13 @@ auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const
   // 首先，local depth相同。当前为空
   auto img_bucket_idx = dir_page->GetMergeImageIndex(bucket_idx);
   auto img_page_id = dir_page->GetBucketPageId(img_bucket_idx);
-  HASH_TABLE_BUCKET_TYPE *img_bucket_page = FetchBucketPage(img_page_id);
+  // HASH_TABLE_BUCKET_TYPE *img_bucket_page = FetchBucketPage(img_page_id);
   // assert(dir_page->GetLocalDepth(bucket_idx) == dir_page->GetLocalDepth(bucket_img_idx));
 
-  if (bucket_page->IsEmpty() && dir_page->GetLocalDepth(bucket_idx) == dir_page->GetLocalDepth(img_bucket_idx) && dir_page->GetLocalDepth(bucket_idx) > 0) {
+  if (bucket_page->IsEmpty() && dir_page->GetLocalDepth(bucket_idx) == dir_page->GetLocalDepth(img_bucket_idx) \
+    && dir_page->GetLocalDepth(bucket_idx) > 0) {
     // 合并之后，localdepth减少
-    buffer_pool_manager_->UnpinPage(page_id);
+    buffer_pool_manager_->UnpinPage(page_id, true);
     buffer_pool_manager_->DeletePage(page_id);
     // 我觉得其实就只需要修改一下dir的table,删除老的page
     auto old_local_d = dir_page->GetLocalDepth(bucket_idx);
