@@ -16,7 +16,6 @@
 #include <vector>
 #include <limits>
 
-
 #include "common/exception.h"
 #include "common/logger.h"
 #include "common/rid.h"
@@ -61,6 +60,7 @@ template <typename KeyType, typename ValueType, typename KeyComparator>
 inline auto HASH_TABLE_TYPE::KeyToPageId(KeyType key, HashTableDirectoryPage *dir_page) -> uint32_t {
   // 给定一个k，找到它对应的桶子 初始时，global depth等于0，他就没有桶子，这里默认桶子存在
   auto index = KeyToDirectoryIndex(key, dir_page);
+  assert(index < DIRECTORY_ARRAY_SIZE);
   return dir_page->GetBucketPageId(index);
 }
 
@@ -100,9 +100,11 @@ auto HASH_TABLE_TYPE::FetchBucketPage(page_id_t bucket_page_id) -> HASH_TABLE_BU
  *****************************************************************************/
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::GetValue(Transaction *transaction, const KeyType &key, std::vector<ValueType> *result) -> bool {
+  table_latch_.RLock();
   auto dir_page = FetchDirectoryPage();
   // check if this is a empty dir
   if (dir_page->GetGlobalDepth() == 0) {
+    table_latch_.RUnlock();
     return false;
   }
   auto page_id = KeyToPageId(key, dir_page);
@@ -111,6 +113,7 @@ auto HASH_TABLE_TYPE::GetValue(Transaction *transaction, const KeyType &key, std
   // unpin these page
   buffer_pool_manager_->UnpinPage(directory_page_id_, false);
   buffer_pool_manager_->UnpinPage(page_id, false);
+  table_latch_.RUnlock();
   return state;
 }
 
@@ -119,6 +122,7 @@ auto HASH_TABLE_TYPE::GetValue(Transaction *transaction, const KeyType &key, std
  *****************************************************************************/
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const ValueType &value) -> bool {
+  table_latch_.WLock();
   // 找到桶之后，看是否存在？是否满了？是否可以split？是否global split？
   auto dir_page = FetchDirectoryPage();
   if (dir_page->GetGlobalDepth() == 0) {
@@ -128,8 +132,8 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
     dir_page->IncrGlobalDepth();
     dir_page->SetBucketPageId(0, new_page_id);
     dir_page->SetBucketPageId(1, new_page_id);
-    // dir_page->IncrLocalDepth(0);
-    // dir_page->IncrLocalDepth(1);
+    dir_page->IncrLocalDepth(0);
+    dir_page->IncrLocalDepth(1);
   }
 
   page_id_t page_id = KeyToPageId(key, dir_page);
@@ -139,16 +143,15 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
   bucket_page->GetValue(key, comparator_, &exist_val);
   for (const auto &val : exist_val) {
     if (val == value) {
+      table_latch_.WUnlock();
       return false;
     }
   }
 
   // 桶是否已满？ 如果已满，是增加全局还是局部的depth？
-  if (bucket_page->IsFull()) {
+  while (bucket_page->IsFull()) {
     // old_idx 文件夹的老下标了，它的新伙伴下标new_idx
     auto old_idx = KeyToDirectoryIndex(key, dir_page);
-    // auto new_idx = old_idx | (1 << dir_page->GetLocalDepth(old_idx));
-    // auto new_idx = dir_page->GetSplitImageIndex(old_idx);
     if (dir_page->GetGlobalDepth() == dir_page->GetLocalDepth(old_idx)) {
       // 先增全局，然后局部。  需要对元素重新摆放位置（当localdepth增加时，这个桶里的就得重新分配）？ 这里怎么增？wtf
       // 一个bucket，全局增加一位后，这个bucket可以被两个同时指向，此时局部的不变，然后重新分配，找到bucket下标
@@ -209,6 +212,7 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
 
   auto ret = bucket_page->Insert(key, value, comparator_);
   buffer_pool_manager_->UnpinPage(page_id, true);
+  table_latch_.WUnlock();
   return ret;
 }
 
@@ -224,12 +228,14 @@ auto HASH_TABLE_TYPE::SplitInsert(Transaction *transaction, const KeyType &key, 
 template <typename KeyType, typename ValueType, typename KeyComparator>
 auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const ValueType &value) -> bool {
   // 找到对应的bucket（如果存在的话，事实上它一定存在），从bucket删除，然后如果为空，调用shrink
+  table_latch_.WLock();
   auto dir_page = FetchDirectoryPage();
   if (dir_page->GetGlobalDepth() == 0) {
     buffer_pool_manager_->UnpinPage(directory_page_id_, false);
+    table_latch_.WUnlock();
     return false;
   }
-  auto page_id = KeyToPageId(key, dir_page);
+  page_id_t page_id = KeyToPageId(key, dir_page);
   auto bucket_idx = KeyToDirectoryIndex(key, dir_page);
   HASH_TABLE_BUCKET_TYPE *bucket_page = FetchBucketPage(page_id);
 
@@ -266,6 +272,7 @@ auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const
   }
 
   buffer_pool_manager_->UnpinPage(page_id, ret);
+  table_latch_.WUnlock();
   return ret;
 }
 

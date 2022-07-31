@@ -92,7 +92,7 @@ class ParallelBufferPoolManager : public BufferPoolManager {
   void FlushAllPgsImp() override;
 
  private:
-  std::vector<BufferPoolManager*> manage_instances_;
+  std::vector<BufferPoolManager *> manage_instances_;
   size_t num_instances_;
   size_t pool_size_of_all_;
   size_t pool_size_;

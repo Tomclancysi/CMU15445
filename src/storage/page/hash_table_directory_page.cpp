@@ -81,11 +81,11 @@ auto HashTableDirectoryPage::GetLocalHighBit(uint32_t bucket_idx) -> uint32_t {
 }
 
 auto HashTableDirectoryPage::GetSplitImageIndex(uint32_t bucket_idx) -> uint32_t {
-  return (1 << local_depths_[bucket_idx]) ^ bucket_idx;
+  return (1u << local_depths_[bucket_idx]) ^ bucket_idx;
 }
 
 auto HashTableDirectoryPage::GetMergeImageIndex(uint32_t bucket_idx) -> uint32_t {
-  return (1 << (local_depths_[bucket_idx] - 1)) ^ bucket_idx;
+  return (1u << (local_depths_[bucket_idx] - 1)) ^ bucket_idx;
 }
 
 /**
