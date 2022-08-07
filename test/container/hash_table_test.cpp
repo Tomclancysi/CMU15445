@@ -29,22 +29,52 @@ TEST(HashTableTest, SampleTest) {
   auto *bpm = new BufferPoolManagerInstance(50, disk_manager);
   ExtendibleHashTable<int, int, IntComparator> ht("blah", bpm, IntComparator(), HashFunction<int>());
 
-  int batch = 496;
-  for (int i = 0; i < 2*batch; ++i) {
+  int batch = 496*2;
+  for (int i = 0; i < batch; ++i) {
     ht.Insert(nullptr, i, i);
     std::vector<int> res;
     ht.GetValue(nullptr, i, &res);
     EXPECT_EQ(1, res.size()) << "Failed to insert " << i << std::endl;
     EXPECT_EQ(i, res[0]);
+    {
+      for (int j = 0; j < i; ++j) {
+        std::vector<int> res;
+        ht.GetValue(nullptr, j, &res);
+        EXPECT_EQ(1, res.size()) << "Failed to insert " << i << std::endl;
+        EXPECT_EQ(j, res[0]);
+      }
+    }
   }
-  {
-    printf("test split\n");
-    ht.Insert(nullptr, 1000, 1000);
+  for (int i = batch; i < 2*batch; ++i) {
+    if (i == 1047) {
+      printf("sdffds");
+    }
+    ht.Insert(nullptr, i, i);
     std::vector<int> res;
-    ht.GetValue(nullptr, 1000, &res);
-    EXPECT_EQ(1, res.size()) << "Failed to insert " << 1000 << std::endl;
-    EXPECT_EQ(1000, res[0]);
+    ht.GetValue(nullptr, i, &res);
+    EXPECT_EQ(1, res.size()) << "Failed to insert " << i << std::endl;
+    EXPECT_EQ(i, res[0]);
+    {
+      for (int j = 0; j < i; ++j) {
+        std::vector<int> res;
+        ht.GetValue(nullptr, j, &res);
+        if (res.size() != 1) {
+          printf("%d, %d\n", i, j);
+          EXPECT_EQ(1, res.size());
+        }
+        EXPECT_EQ(j, res[0]);
+      }
+    }
   }
+  printf("middle global depth is %d\n", ht.GetGlobalDepth());
+  // {
+  //   printf("test split\n");
+  //   ht.Insert(nullptr, 1000, 1000);
+  //   std::vector<int> res;
+  //   ht.GetValue(nullptr, 1000, &res);
+  //   EXPECT_EQ(1, res.size()) << "Failed to insert " << 1000 << std::endl;
+  //   EXPECT_EQ(1000, res[0]);
+  // }
 
   for (int i = 0; i < 2*batch; ++i) {
     EXPECT_FALSE(ht.Insert(nullptr, i, i));
@@ -54,16 +84,23 @@ TEST(HashTableTest, SampleTest) {
     EXPECT_EQ(i, res[0]);
   }
 
-  EXPECT_EQ(ht.GetGlobalDepth(), 2);
+  printf("middle global depth is %d\n", ht.GetGlobalDepth());
 
   for (int i = 0; i < 2*batch; ++i) {
     EXPECT_TRUE(ht.Remove(nullptr, i, i));
     std::vector<int> res;
     ht.GetValue(nullptr, i, &res);
-    EXPECT_EQ(1, res.size()) << "Failed to insert " << i << std::endl;
-    EXPECT_EQ(i, res[0]);
+    EXPECT_EQ(0, res.size()) << "Failed to delete" << i << std::endl;
   }
-
+  // {
+  //   printf("test shrink\n");
+  //   ht.Remove(nullptr, 1000, 1000);
+  //   std::vector<int> res;
+  //   ht.GetValue(nullptr, 1000, &res);
+  //   EXPECT_EQ(0, res.size()) << "Failed to delete " << 1000 << std::endl;
+  // }
+  printf("final global depth is %d\n", ht.GetGlobalDepth());
+  EXPECT_EQ(ht.GetGlobalDepth(), 0);
   // // insert a few values
   // for (int i = 0; i < 5; i++) {
   //   ht.Insert(nullptr, i, i);

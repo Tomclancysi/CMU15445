@@ -11,10 +11,10 @@
 //===----------------------------------------------------------------------===//
 #include <cassert>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
-#include <limits>
 
 #include "common/exception.h"
 #include "common/logger.h"
@@ -100,7 +100,7 @@ auto HASH_TABLE_TYPE::FetchBucketPage(page_id_t bucket_page_id) -> HASH_TABLE_BU
   if (pg == nullptr) {
     return nullptr;
   }
-  HASH_TABLE_BUCKET_TYPE *ret =  reinterpret_cast<HASH_TABLE_BUCKET_TYPE *>(pg->GetData());
+  HASH_TABLE_BUCKET_TYPE *ret = reinterpret_cast<HASH_TABLE_BUCKET_TYPE *>(pg->GetData());
   return ret;
 }
 
@@ -160,7 +160,7 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
 
     // 增局部，然后判断还可能得增全局 （当localdepth增加时，这个桶里的就得重新分配）
     // 1. 首先要创建一个新的桶
-    uint32_t new_idx = dir_page->GetSplitImageIndex(old_idx);
+    // uint32_t new_idx = dir_page->GetSplitImageIndex(old_idx);
     page_id_t new_page_id;
     auto t = buffer_pool_manager_->NewPage(&new_page_id);
     HASH_TABLE_BUCKET_TYPE *new_bucket_page = reinterpret_cast<HASH_TABLE_BUCKET_TYPE *>(t);
@@ -180,16 +180,16 @@ auto HASH_TABLE_TYPE::Insert(Transaction *transaction, const KeyType &key, const
     }
 
     // 3. 重新配置索引（注意：可能会有多个指向同一个桶的，所以这里更新bucket要循环）, 增加local depth
-    auto mask = (1u << (old_local_d + 1)) - 1;
+    auto mask = (1U << old_local_d) - 1;
     uint32_t upper_index = 1 << dir_page->GetGlobalDepth();
     for (uint32_t cur_idx = 0; cur_idx < upper_index; cur_idx++) {
       if ((cur_idx & mask) == (old_idx & mask)) {
         assert(dir_page->GetLocalDepth(cur_idx) == old_local_d);
-        dir_page->SetBucketPageId(cur_idx, page_id);
-        dir_page->SetLocalDepth(cur_idx, old_local_d + 1);
-      } else if ((cur_idx & mask) == (new_idx & mask)) {
-        assert(dir_page->GetLocalDepth(cur_idx) == old_local_d);
-        dir_page->SetBucketPageId(cur_idx, new_page_id);
+        if (((cur_idx >> old_local_d) & 1) == 1) {
+          dir_page->SetBucketPageId(cur_idx, new_page_id);
+        } else {
+          dir_page->SetBucketPageId(cur_idx, page_id);
+        }
         dir_page->SetLocalDepth(cur_idx, old_local_d + 1);
       }
     }
@@ -239,8 +239,8 @@ auto HASH_TABLE_TYPE::Remove(Transaction *transaction, const KeyType &key, const
     // HASH_TABLE_BUCKET_TYPE *img_bucket_page = FetchBucketPage(img_page_id);
     // assert(dir_page->GetLocalDepth(bucket_idx) == dir_page->GetLocalDepth(bucket_img_idx));
 
-    if (bucket_page->IsEmpty() && dir_page->GetLocalDepth(bucket_idx) == dir_page->GetLocalDepth(img_bucket_idx) \
-      && dir_page->GetLocalDepth(bucket_idx) > 0) {
+    if (bucket_page->IsEmpty() && dir_page->GetLocalDepth(bucket_idx) == dir_page->GetLocalDepth(img_bucket_idx) &&
+        dir_page->GetLocalDepth(bucket_idx) > 0) {
       // 合并之后，localdepth减少
       buffer_pool_manager_->UnpinPage(page_id, true);
       buffer_pool_manager_->DeletePage(page_id);
