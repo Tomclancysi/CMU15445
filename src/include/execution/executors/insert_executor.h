@@ -56,6 +56,9 @@ class InsertExecutor : public AbstractExecutor {
   /** @return The output schema for the insert */
   auto GetOutputSchema() -> const Schema * override { return plan_->OutputSchema(); };
 
+  /** Where actually insert */
+  void ExecuteInsert();
+
  private:
   /** The insert plan node to be executed*/
   const InsertPlanNode *plan_;

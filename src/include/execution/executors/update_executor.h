@@ -58,6 +58,9 @@ class UpdateExecutor : public AbstractExecutor {
   /** @return The output schema for the update */
   auto GetOutputSchema() -> const Schema * override { return plan_->OutputSchema(); };
 
+  /** Where actually update */
+  void ExecuteUpdate();
+
  private:
   /**
    * Given a tuple, creates a new, updated tuple

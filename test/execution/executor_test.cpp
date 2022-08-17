@@ -204,7 +204,7 @@ TEST_F(ExecutorTest, SimpleSelectInsertTest) {
   }
 }
 
-// INSERT INTO empty_table2 VALUES (100, 10), (101, 11), (102, 12)
+// INSERT INTO empty_table2 VALUES (100, 10), (101, 11), (102, 12) PASS
 TEST_F(ExecutorTest, SimpleRawInsertWithIndexTest) {
   // Create Values to insert
   std::vector<Value> val1{ValueFactory::GetIntegerValue(100), ValueFactory::GetIntegerValue(10)};
@@ -269,8 +269,9 @@ TEST_F(ExecutorTest, SimpleRawInsertWithIndexTest) {
   }
 }
 
-// UPDATE test_3 SET colB = colB + 1;
-TEST_F(ExecutorTest, DISABLED_SimpleUpdateTest) {
+// 这门课的作业搞的刚刚好，即展示了很多细节，但不会让你陷入到无穷的细节当中，给你包装好的API，你只需要在茫茫代码当中找到它，调用即可。
+// UPDATE test_3 SET colB = colB + 1; PASS
+TEST_F(ExecutorTest, SimpleUpdateTest) {
   // Construct a sequential scan of the table
   const Schema *out_schema{};
   std::unique_ptr<AbstractPlanNode> scan_plan{};
@@ -329,7 +330,7 @@ TEST_F(ExecutorTest, DISABLED_SimpleUpdateTest) {
 }
 
 // DELETE FROM test_1 WHERE col_a == 50;
-TEST_F(ExecutorTest, DISABLED_SimpleDeleteTest) {
+TEST_F(ExecutorTest, SimpleDeleteTest) {
   // Construct query plan
   auto table_info = GetExecutorContext()->GetCatalog()->GetTable("test_1");
   auto &schema = table_info->schema_;

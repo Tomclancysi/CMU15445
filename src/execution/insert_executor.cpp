@@ -32,47 +32,41 @@ void InsertExecutor::Init() {
         child_executor_->Init();
     }
     inserted_table_ = exec_ctx_->GetCatalog()->GetTable(plan_->TableOid());
+
+    ExecuteInsert();
 }
 
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
+    return false;
+}
+
+void InsertExecutor::ExecuteInsert() {
     Tuple temp_tuple;
     RID temp_rid;
+    auto catalog = exec_ctx_->GetCatalog();
+    auto indexes_info = catalog->GetTableIndexes(inserted_table_->name_);
     // the value maybe from the plan node(directly) or select plan from child node
     if (plan_->IsRawInsert()) {
-        if (raw_values_index_ < raw_values_length_) {
+        while (raw_values_index_ < raw_values_length_) {
             // 1. transfrom vector value to tuple
             const auto &raw_values = plan_->RawValuesAt(raw_values_index_++);
             temp_tuple = Tuple(raw_values, &inserted_table_->schema_);
             // 2. assume the value match the table schema, part insert is not allowed
             if (inserted_table_->table_->InsertTuple(temp_tuple, &temp_rid, exec_ctx_->GetTransaction())) {
                 // 3. update index of table
-                auto catalog = exec_ctx_->GetCatalog();
-                auto indexes_info = catalog->GetTableIndexes(inserted_table_->name_);
                 for (const auto &index_info : indexes_info) {
                     index_info->index_->InsertEntry(temp_tuple, temp_rid, exec_ctx_->GetTransaction());
                 }
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        }
+            } 
+        } 
     } else {
-        if (child_executor_->Next(&temp_tuple, &temp_rid)) {
+        while (child_executor_->Next(&temp_tuple, &temp_rid)) {
             if (inserted_table_->table_->InsertTuple(temp_tuple, &temp_rid, exec_ctx_->GetTransaction())) {
                 // 3. update index of table
-                auto catalog = exec_ctx_->GetCatalog();
-                auto indexes_info = catalog->GetTableIndexes(inserted_table_->name_);
                 for (const auto &index_info : indexes_info) {
                     index_info->index_->InsertEntry(temp_tuple, temp_rid, exec_ctx_->GetTransaction());
-                }
-                return true;
-            } else {
-                return false;
+                }   
             }
-        } else {
-            return false;
         }
     }
 }

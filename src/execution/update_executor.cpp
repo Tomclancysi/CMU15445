@@ -17,11 +17,43 @@ namespace bustub {
 
 UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx) {}
+    : AbstractExecutor(exec_ctx), child_executor_(std::move(child_executor)) {
+      plan_ = plan;
+    }
 
-void UpdateExecutor::Init() {}
+void UpdateExecutor::Init() {
+  // it must had a child seq
+  // child_executor_ = ExecutorFactory::CreateExecutor(exec_ctx_, plan_->GetChildPlan());
+  child_executor_->Init();
+  table_info_ = exec_ctx_->GetCatalog()->GetTable(plan_->TableOid());
 
-auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool { return false; }
+  ExecuteUpdate();
+}
+
+auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
+  return false;
+}
+
+void UpdateExecutor::ExecuteUpdate() {
+  Tuple temp_tuple;
+  Tuple updated_tuple;
+  RID temp_rid;
+  auto catalog = exec_ctx_->GetCatalog();
+  auto indexes_info = catalog->GetTableIndexes(table_info_->name_);
+  // 1. get tuple and rid from its child node
+  while (child_executor_->Next(&temp_tuple, &temp_rid)) {
+    updated_tuple = GenerateUpdatedTuple(temp_tuple);
+    // 2. update the table
+    bool f = table_info_->table_->UpdateTuple(updated_tuple, temp_rid, exec_ctx_->GetTransaction());
+    // 3. re-index this tuple, cause its value are changed
+    if (f) {
+      for (const auto &index_info : indexes_info) {
+          index_info->index_->DeleteEntry(temp_tuple, temp_rid, exec_ctx_->GetTransaction());
+          index_info->index_->InsertEntry(updated_tuple, temp_rid, exec_ctx_->GetTransaction());
+      }
+    }
+  }
+}
 
 auto UpdateExecutor::GenerateUpdatedTuple(const Tuple &src_tuple) -> Tuple {
   const auto &update_attrs = plan_->GetUpdateAttr();
