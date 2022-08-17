@@ -14,10 +14,39 @@
 
 namespace bustub {
 
-SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan) : AbstractExecutor(exec_ctx) {}
+SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan) : AbstractExecutor(exec_ctx) {
+    plan_ = plan;
+}
 
-void SeqScanExecutor::Init() {}
+void SeqScanExecutor::Init() {
+    result_set_.clear();
+    // read the source code, then you know
+    auto table_info = exec_ctx_->GetCatalog()->GetTable(plan_->GetTableOid());
+    // from the table heap get the table iter from begin to end, this const point will fail.
+    TableIterator iter = table_info->table_->Begin(exec_ctx_->GetTransaction());
+    TableIterator end = table_info->table_->End();
+    Schema table_schema = table_info->schema_;
 
-auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool { return false; }
+    while (iter != end) {
+        const Tuple &tuple = *iter;
+        // wtf where is the scheme of query?
+        if (plan_->GetPredicate() == nullptr || plan_->GetPredicate()->Evaluate(&tuple, &table_schema).GetAs<bool>()) {
+            result_set_.push_back(*iter);
+        }
+        ++iter;
+    }
+    cursor_ = result_set_.begin();
+}
+
+auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
+    if (cursor_ != result_set_.end()) {
+        *tuple = *cursor_;
+        *rid = (*cursor_).GetRid();
+        ++cursor_;
+        return true;
+    } else {
+        return false;
+    }
+}
 
 }  // namespace bustub
