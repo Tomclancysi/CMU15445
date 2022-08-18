@@ -49,7 +49,7 @@ void UpdateExecutor::ExecuteUpdate() {
     if (f) {
       for (const auto &index_info : indexes_info) {
           const auto & index = index_info->index_;
-          auto key = temp_tuple.KeyFromTuple(table_info_->schema_, *index->GetKeySchema(), index->GetKeyAttrs());
+          auto key = temp_tuple.KeyFromTuple(*child_executor_->GetOutputSchema(), *index->GetKeySchema(), index->GetKeyAttrs());
           index_info->index_->DeleteEntry(key, temp_rid, exec_ctx_->GetTransaction());
           index_info->index_->InsertEntry(key, temp_rid, exec_ctx_->GetTransaction());
       }

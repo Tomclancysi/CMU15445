@@ -32,6 +32,12 @@ void SeqScanExecutor::Init() {
         // wtf where is the scheme of query?
         if (plan_->GetPredicate() == nullptr || plan_->GetPredicate()->Evaluate(&tuple, &table_schema).GetAs<bool>()) {
             // do we need use output schema? no
+            // auto temp_value = *iter;
+            // std::vector<Value> output;
+            // for (const auto& col : GetOutputSchema()->GetColumns()) {
+            //     output.push_back(col.GetExpr()->Evaluate(&temp_value, GetOutputSchema()));
+            // }
+            // result_set_.push_back(Tuple(output, GetOutputSchema()));
             result_set_.push_back(*iter);
         }
         ++iter;
