@@ -31,6 +31,7 @@ void SeqScanExecutor::Init() {
         const Tuple &tuple = *iter;
         // wtf where is the scheme of query?
         if (plan_->GetPredicate() == nullptr || plan_->GetPredicate()->Evaluate(&tuple, &table_schema).GetAs<bool>()) {
+            // do we need use output schema? no
             result_set_.push_back(*iter);
         }
         ++iter;

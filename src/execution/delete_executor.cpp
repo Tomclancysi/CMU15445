@@ -36,10 +36,15 @@ void DeleteExecutor::ExecuteDelete() {
   RID temp_rid;
   auto catalog = exec_ctx_->GetCatalog();
   auto indexes_info = catalog->GetTableIndexes(table_info_->name_);
+  
   // 1. get tuple and rid from its child node
   while (child_executor_->Next(&temp_tuple, &temp_rid)) {
-    for (const auto &index_info : indexes_info) {
-        index_info->index_->DeleteEntry(temp_tuple, temp_rid, nullptr);
+    if (table_info_->table_->MarkDelete(temp_rid, exec_ctx_->GetTransaction())) {
+        for (const auto &index_info : indexes_info) {
+            const auto & index = index_info->index_;
+            auto key = temp_tuple.KeyFromTuple(table_info_->schema_, *index->GetKeySchema(), index->GetKeyAttrs());
+            index_info->index_->DeleteEntry(key, temp_rid, exec_ctx_->GetTransaction());
+        }
     }
   }
 }

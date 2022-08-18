@@ -48,8 +48,10 @@ void UpdateExecutor::ExecuteUpdate() {
     // 3. re-index this tuple, cause its value are changed
     if (f) {
       for (const auto &index_info : indexes_info) {
-          index_info->index_->DeleteEntry(temp_tuple, temp_rid, exec_ctx_->GetTransaction());
-          index_info->index_->InsertEntry(updated_tuple, temp_rid, exec_ctx_->GetTransaction());
+          const auto & index = index_info->index_;
+          auto key = temp_tuple.KeyFromTuple(table_info_->schema_, *index->GetKeySchema(), index->GetKeyAttrs());
+          index_info->index_->DeleteEntry(key, temp_rid, exec_ctx_->GetTransaction());
+          index_info->index_->InsertEntry(key, temp_rid, exec_ctx_->GetTransaction());
       }
     }
   }

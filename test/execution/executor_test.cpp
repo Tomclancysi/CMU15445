@@ -357,7 +357,11 @@ TEST_F(ExecutorTest, SimpleDeleteTest) {
   }
 
   // DELETE FROM test_1 WHERE col_a == 50
-  const Tuple index_key = Tuple(result_set[0]);
+  // i think it need change may be i wrong but it works again. An PR
+  Tuple index_key = Tuple(result_set[0]);
+  const auto &index = index_info->index_;
+  index_key = index_key.KeyFromTuple(table_info->schema_, *index->GetKeySchema(), index->GetKeyAttrs());
+
   std::unique_ptr<AbstractPlanNode> delete_plan;
   { delete_plan = std::make_unique<DeletePlanNode>(scan_plan1.get(), table_info->oid_); }
   GetExecutionEngine()->Execute(delete_plan.get(), nullptr, GetTxn(), GetExecutorContext());
