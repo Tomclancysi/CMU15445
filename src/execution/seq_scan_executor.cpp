@@ -20,7 +20,8 @@ SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNod
 
 void SeqScanExecutor::Init() {
     result_set_.clear();
-    // read the source code, then you know
+    fuck_rid_.clear();
+    // read the source code, then you know!
     auto table_info = exec_ctx_->GetCatalog()->GetTable(plan_->GetTableOid());
     // from the table heap get the table iter from begin to end, this const point will fail.
     TableIterator iter = table_info->table_->Begin(exec_ctx_->GetTransaction());
@@ -33,26 +34,30 @@ void SeqScanExecutor::Init() {
         if (plan_->GetPredicate() == nullptr || plan_->GetPredicate()->Evaluate(&tuple, &table_schema).GetAs<bool>()) {
             // do we need use output schema? no? maybe is yes, i find how to use this
             // however it's quite no!
-            // auto temp_value = *iter;
-            // std::vector<Value> output;
-            // for (const auto& col : GetOutputSchema()->GetColumns()) {
-            //     // output.push_back(col.GetExpr()->Evaluate(&temp_value, GetOutputSchema()));
-            //     auto sche = &table_info->schema_;
-            //     Value v = tuple.GetValue(sche, sche->GetColIdx(col.GetName()));
-            //     output.push_back(v);
-            // }
-            // result_set_.push_back(Tuple(output, GetOutputSchema()));
-            result_set_.push_back(*iter);
+            auto temp_value = *iter;
+            std::vector<Value> output;
+            for (const auto& col : GetOutputSchema()->GetColumns()) {
+                // output.push_back(col.GetExpr()->Evaluate(&temp_value, GetOutputSchema()));
+                auto sche = &table_info->schema_;
+                Value v = tuple.GetValue(sche, sche->GetColIdx(col.GetName()));
+                output.push_back(v);
+            }
+            result_set_.push_back(Tuple(output, GetOutputSchema()));
+            fuck_rid_.push_back(tuple.GetRid());
+            // result_set_.push_back(*iter);
         }
         ++iter;
     }
     cursor_ = result_set_.begin();
+    fuck_iter_ = fuck_rid_.begin();
 }
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
     if (cursor_ != result_set_.end()) {
         *tuple = *cursor_;
-        *rid = (*cursor_).GetRid();
+        // *rid = (*cursor_).GetRid();
+        *rid = *fuck_iter_;
+        ++fuck_iter_;
         ++cursor_;
         return true;
     } else {

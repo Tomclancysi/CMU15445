@@ -378,7 +378,7 @@ TEST_F(ExecutorTest, SimpleDeleteTest) {
   ASSERT_TRUE(rids.empty());
 }
 
-// SELECT test_1.col_a, test_1.col_b, test_2.col1, test_2.col3 FROM test_1 JOIN test_2 ON test_1.col_a = test_2.col1; pass
+// SELECT test_1.col_a, test_1.col_b, test_2.col1, test_2.col3 sFROM test_1 JOIN test_2 ON test_1.col_a = test_2.col1; pass
 TEST_F(ExecutorTest, SimpleNestedLoopJoinTest) {
   const Schema *out_schema1;
   std::unique_ptr<AbstractPlanNode> scan_plan1;
@@ -631,7 +631,7 @@ TEST_F(ExecutorTest, SimpleDistinctTest) {
   auto *out_schema = MakeOutputSchema({{"colC", col_c}});
 
   // Construct sequential scan
-  auto seq_scan_plan = std::make_unique<SeqScanPlanNode>(&schema, nullptr, table_info->oid_);
+  auto seq_scan_plan = std::make_unique<SeqScanPlanNode>(out_schema, nullptr, table_info->oid_);
 
   // Construct the distinct plan
   auto distinct_plan = std::make_unique<DistinctPlanNode>(out_schema, seq_scan_plan.get());
