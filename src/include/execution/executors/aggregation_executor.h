@@ -108,6 +108,10 @@ class SimpleAggregationHashTable {
     CombineAggregateValues(&ht_[agg_key], agg_val);
   }
 
+  void RemoveKey(const AggregateKey &agg_key) {
+    ht_.erase(agg_key);
+  }
+
   /** An iterator over the aggregation hash table */
   class Iterator {
    public:
@@ -209,8 +213,10 @@ class AggregationExecutor : public AbstractExecutor {
   /** The child executor that produces tuples over which the aggregation is computed */
   std::unique_ptr<AbstractExecutor> child_;
   /** Simple aggregation hash table */
-  // TODO(Student): Uncomment SimpleAggregationHashTable aht_;
+  SimpleAggregationHashTable aht_;
   /** Simple aggregation hash table iterator */
-  // TODO(Student): Uncomment SimpleAggregationHashTable::Iterator aht_iterator_;
+  SimpleAggregationHashTable::Iterator aht_iterator_;
+  /** 为了使用aht里那些方法，搞个默认的key不用重写了 */
+  AggregateKey default_key_;
 };
 }  // namespace bustub

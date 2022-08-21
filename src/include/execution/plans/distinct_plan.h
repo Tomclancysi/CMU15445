@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "execution/expressions/abstract_expression.h"
 #include "execution/plans/abstract_plan.h"
 
 namespace bustub {
@@ -38,4 +39,35 @@ class DistinctPlanNode : public AbstractPlanNode {
   }
 };
 
+struct MultiKey
+{
+  std::vector<Value> vals_;
+  auto operator==(const MultiKey &other) const -> bool {
+    for (std::size_t i = 0; i < vals_.size(); ++i) {
+      if (vals_[i].CompareEquals(other.vals_[i]) != CmpBool::CmpTrue) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
 }  // namespace bustub
+
+namespace std {
+
+/** Implements std::hash on MultiKey */
+template <>
+struct hash<bustub::MultiKey> {
+  auto operator()(const bustub::MultiKey &agg_key) const -> std::size_t {
+    size_t curr_hash = 0;
+    for (const auto &key : agg_key.vals_) {
+      if (!key.IsNull()) {
+        curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&key));
+      }
+    }
+    return curr_hash;
+  }
+};
+
+}

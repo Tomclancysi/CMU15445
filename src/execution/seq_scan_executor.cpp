@@ -31,11 +31,15 @@ void SeqScanExecutor::Init() {
         const Tuple &tuple = *iter;
         // wtf where is the scheme of query?
         if (plan_->GetPredicate() == nullptr || plan_->GetPredicate()->Evaluate(&tuple, &table_schema).GetAs<bool>()) {
-            // do we need use output schema? no
+            // do we need use output schema? no? maybe is yes, i find how to use this
+            // however it's quite no!
             // auto temp_value = *iter;
             // std::vector<Value> output;
             // for (const auto& col : GetOutputSchema()->GetColumns()) {
-            //     output.push_back(col.GetExpr()->Evaluate(&temp_value, GetOutputSchema()));
+            //     // output.push_back(col.GetExpr()->Evaluate(&temp_value, GetOutputSchema()));
+            //     auto sche = &table_info->schema_;
+            //     Value v = tuple.GetValue(sche, sche->GetColIdx(col.GetName()));
+            //     output.push_back(v);
             // }
             // result_set_.push_back(Tuple(output, GetOutputSchema()));
             result_set_.push_back(*iter);

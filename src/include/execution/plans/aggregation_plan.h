@@ -71,10 +71,10 @@ class AggregationPlanNode : public AbstractPlanNode {
   /** @return The idx'th aggregate expression */
   auto GetAggregateAt(uint32_t idx) const -> const AbstractExpression * { return aggregates_[idx]; }
 
-  /** @return The aggregate expressions */
+  /** @return The aggregate expressions聚合操作的表达式 */
   auto GetAggregates() const -> const std::vector<const AbstractExpression *> & { return aggregates_; }
 
-  /** @return The aggregate types */
+  /** @return The aggregate types当前有哪几种聚合操作min？max？ */
   auto GetAggregateTypes() const -> const std::vector<AggregationType> & { return agg_types_; }
 
  private:
