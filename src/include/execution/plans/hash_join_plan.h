@@ -17,7 +17,6 @@
 
 #include "catalog/catalog.h"
 #include "common/util/hash_util.h"
-#include "execution/expressions/abstract_expression.h"
 #include "execution/plans/abstract_plan.h"
 
 namespace bustub {
@@ -68,22 +67,4 @@ class HashJoinPlanNode : public AbstractPlanNode {
   const AbstractExpression *right_key_expression_;
 };
 
-struct SingleKey {
-  Value val_;
-  auto operator==(const SingleKey &other) const -> bool {
-    return val_.CompareEquals(other.val_) == CmpBool::CmpTrue;
-  }
-};
-
 }  // namespace bustub
-
-namespace std {
-
-template<>
-struct hash<bustub::SingleKey> {
-  auto operator()(const bustub::SingleKey &sing_key) const -> std::size_t {
-    return bustub::HashUtil::HashValue(&sing_key.val_);
-  }
-};
-
-}

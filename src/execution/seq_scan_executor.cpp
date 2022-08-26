@@ -42,7 +42,7 @@ void SeqScanExecutor::Init() {
                 Value v = tuple.GetValue(sche, sche->GetColIdx(col.GetName()));
                 output.push_back(v);
             }
-            result_set_.push_back(Tuple(output, GetOutputSchema()));
+            result_set_.emplace_back(output, GetOutputSchema());
             fuck_rid_.push_back(tuple.GetRid());
             // result_set_.push_back(*iter);
         }
@@ -60,9 +60,8 @@ auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
         ++fuck_iter_;
         ++cursor_;
         return true;
-    } else {
-        return false;
     }
+    return false;
 }
 
 }  // namespace bustub

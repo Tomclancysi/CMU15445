@@ -17,10 +17,34 @@
 #include <utility>
 #include <vector>
 
+#include "common/util/hash_util.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
+#include "execution/expressions/abstract_expression.h"
 #include "execution/plans/hash_join_plan.h"
 #include "storage/table/tuple.h"
+
+namespace bustub {
+
+struct SingleKey {
+  Value val_;
+  auto operator==(const SingleKey &other) const -> bool {
+    return val_.CompareEquals(other.val_) == CmpBool::CmpTrue;
+  }
+};
+
+} // namespace bustub
+
+namespace std {
+
+template<>
+struct hash<bustub::SingleKey> {
+  auto operator()(const bustub::SingleKey &sing_key) const -> std::size_t {
+    return bustub::HashUtil::HashValue(&sing_key.val_);
+  }
+};
+
+}
 
 namespace bustub {
 

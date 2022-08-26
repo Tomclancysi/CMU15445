@@ -35,12 +35,10 @@ void DistinctExecutor::Init() {
             mk.vals_.push_back(v);
         }
         if (exist_.count(mk) == 0) {
-            printf("insert key to ht %d\n", mk.vals_[0].GetAs<int>());
             exist_[mk] = rid;
         }
     }
     iter_ = exist_.begin();
-    printf("The size of all is %lu\n",exist_.size());
 }
 
 auto DistinctExecutor::Next(Tuple *tuple, RID *rid) -> bool {
