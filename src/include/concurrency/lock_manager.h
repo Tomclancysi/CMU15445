@@ -13,7 +13,7 @@
 #pragma once
 
 #include <algorithm>
-#include <condition_variable>  // NOLINT
+#include <condition_variable>
 #include <list>
 #include <memory>
 #include <mutex>  // NOLINT

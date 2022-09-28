@@ -48,6 +48,7 @@ void BasicTest1() {
   // test
 
   auto task = [&](int txn_id) {
+    // 对每个transaction进行测试
     bool res;
     for (const RID &rid : rids) {
       res = lock_mgr.LockShared(txns[txn_id], rid);
@@ -60,13 +61,13 @@ void BasicTest1() {
       CheckShrinking(txns[txn_id]);
     }
     txn_mgr.Commit(txns[txn_id]);
-    CheckCommitted(txns[txn_id]);
+    CheckCommitted(txns[txn_id]); // ??
   };
   std::vector<std::thread> threads;
   threads.reserve(num_rids);
 
   for (int i = 0; i < num_rids; i++) {
-    threads.emplace_back(std::thread{task, i});
+    threads.emplace_back(std::thread{task, i}); // 并发执行一下，都调用同一个share锁
   }
 
   for (int i = 0; i < num_rids; i++) {
@@ -77,7 +78,7 @@ void BasicTest1() {
     delete txns[i];
   }
 }
-TEST(LockManagerTest, DISABLED_BasicTest) { BasicTest1(); }
+TEST(LockManagerTest, BasicTest) { BasicTest1(); }
 
 void TwoPLTest() {
   LockManager lock_mgr{};
@@ -89,14 +90,18 @@ void TwoPLTest() {
   EXPECT_EQ(0, txn->GetTransactionId());
 
   bool res;
-  res = lock_mgr.LockShared(txn, rid0);
+  res = lock_mgr.LockShared(txn, rid0); // 锁上0
+  printf("****lock 0****\n");
   EXPECT_TRUE(res);
   CheckGrowing(txn);
+  printf("****grow****\n");
   CheckTxnLockSize(txn, 1, 0);
 
-  res = lock_mgr.LockExclusive(txn, rid1);
+  res = lock_mgr.LockExclusive(txn, rid1); // 锁上1
+  printf("****lock 1****\n");
   EXPECT_TRUE(res);
   CheckGrowing(txn);
+  printf("****grow 1****\n");
   CheckTxnLockSize(txn, 1, 1);
 
   res = lock_mgr.Unlock(txn, rid0);
@@ -123,7 +128,7 @@ void TwoPLTest() {
 
   delete txn;
 }
-TEST(LockManagerTest, DISABLED_TwoPLTest) { TwoPLTest(); }
+TEST(LockManagerTest, TwoPLTest) { TwoPLTest(); }
 
 void UpgradeTest() {
   LockManager lock_mgr{};
@@ -150,7 +155,7 @@ void UpgradeTest() {
   txn_mgr.Commit(&txn);
   CheckCommitted(&txn);
 }
-TEST(LockManagerTest, DISABLED_UpgradeLockTest) { UpgradeTest(); }
+TEST(LockManagerTest, UpgradeLockTest) { UpgradeTest(); }
 
 void WoundWaitBasicTest() {
   LockManager lock_mgr{};
@@ -158,7 +163,7 @@ void WoundWaitBasicTest() {
   RID rid{0, 0};
 
   int id_hold = 0;
-  int id_die = 1;
+  int id_die = 1; // 排名靠后的年轻的找死
 
   std::promise<void> t1done;
   std::shared_future<void> t1_future(t1done.get_future());
@@ -167,7 +172,7 @@ void WoundWaitBasicTest() {
     // younger transaction acquires lock first
     Transaction txn_die(id_die);
     txn_mgr.Begin(&txn_die);
-    bool res = lock_mgr.LockExclusive(&txn_die, rid);
+    bool res = lock_mgr.LockExclusive(&txn_die, rid); // 虽然是年轻的先来锁的
     EXPECT_TRUE(res);
 
     CheckGrowing(&txn_die);
@@ -177,7 +182,7 @@ void WoundWaitBasicTest() {
 
     // wait for txn 0 to call lock_exclusive(), which should wound us
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
-
+    // 一觉醒来 莫名其妙abort了 那是谁搞得呢？另一个thread？
     CheckAborted(&txn_die);
 
     // unlock
@@ -202,6 +207,6 @@ void WoundWaitBasicTest() {
   txn_mgr.Commit(&txn_hold);
   CheckCommitted(&txn_hold);
 }
-TEST(LockManagerTest, DISABLED_WoundWaitBasicTest) { WoundWaitBasicTest(); }
+TEST(LockManagerTest, WoundWaitBasicTest) { WoundWaitBasicTest(); }
 
 }  // namespace bustub
