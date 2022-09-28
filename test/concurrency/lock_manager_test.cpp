@@ -172,7 +172,7 @@ void WoundWaitBasicTest() {
     // younger transaction acquires lock first
     Transaction txn_die(id_die);
     txn_mgr.Begin(&txn_die);
-    bool res = lock_mgr.LockExclusive(&txn_die, rid); // 虽然是年轻的先来锁的
+    bool res = lock_mgr.LockExclusive(&txn_die, rid); // 虽然是年轻的先来锁的 怎么abort它呢
     EXPECT_TRUE(res);
 
     CheckGrowing(&txn_die);
