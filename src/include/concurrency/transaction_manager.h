@@ -23,6 +23,7 @@
 #include "recovery/log_manager.h"
 
 namespace bustub {
+  
 class LockManager;
 
 /**

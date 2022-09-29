@@ -25,9 +25,11 @@
 #include "common/rid.h"
 #include "concurrency/transaction.h"
 
+
 namespace bustub {
 
 class TransactionManager;
+// Transaction * TransactionManager::GetTransaction(txn_id_t txn_id); // 如何生命这个静态方法？？
 
 /**
  * LockManager handles transactions asking for locks on records.

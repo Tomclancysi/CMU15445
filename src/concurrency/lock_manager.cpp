@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "concurrency/lock_manager.h"
+#include "concurrency/transaction_manager.h"
 
 #include <utility>
 #include <vector>
@@ -33,12 +34,18 @@ auto LockManager::LockShared(Transaction *txn, const RID &rid) -> bool {
     auto &lrq = lock_table_[rid];
     auto check = [&](){
       // chech if lrq has exlusive lock
+      bool ret = true;
       for (const auto& req : lrq.request_queue_) {
         if (req.lock_mode_ == LockMode::EXCLUSIVE && req.granted_) {
-          return false;
+          if (req.txn_id_ > txn->GetTransactionId()) {
+            // 虽然可以砍了它，但是还是得循环遍历，看看它是否被移除
+            auto trans = TransactionManager::GetTransaction(req.txn_id_);
+            trans->SetState(TransactionState::ABORTED);
+          }
+          ret = false;
         }
       }
-      return true;
+      return ret;
     };
     lrq.cv_.wait(ulk, check);
     LockRequest req(txn->GetTransactionId(), LockMode::SHARED);
@@ -66,12 +73,17 @@ auto LockManager::LockExclusive(Transaction *txn, const RID &rid) -> bool {
     auto &lrq = lock_table_[rid];
     auto check = [&](){
       // chech if lrq is empty
+      bool ret = true;
       for (const auto& req : lrq.request_queue_) {
         if (req.granted_) {
-          return false;
+          if (req.txn_id_ > txn->GetTransactionId()) {
+            auto trans = TransactionManager::GetTransaction(req.txn_id_);
+            trans->SetState(TransactionState::ABORTED);
+          }
+          ret = false;
         }
       }
-      return true;
+      return ret;
     };
     lrq.cv_.wait(ulk, check);
     LockRequest req(txn->GetTransactionId(), LockMode::EXCLUSIVE);
@@ -99,12 +111,17 @@ auto LockManager::LockUpgrade(Transaction *txn, const RID &rid) -> bool {
     return true;
   }
   auto check = [&](){
+    bool ret = true;
     for(const auto &req : lrq.request_queue_) {
       if (req.txn_id_ != txn->GetTransactionId() && req.granted_) {
-        return false;
+          if (req.txn_id_ > txn->GetTransactionId()) {
+            auto trans = TransactionManager::GetTransaction(req.txn_id_);
+            trans->SetState(TransactionState::ABORTED);
+          }
+        ret = false;
       }
     }
-    return true;
+    return ret;
   };
   lrq.cv_.wait(ulk, check);
 
